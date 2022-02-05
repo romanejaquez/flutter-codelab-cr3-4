@@ -1,0 +1,1422 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Flutter Codelab / Coding Roulette: Full Stack Flutter Apps Workshop (pt.4): Cloud Firestore - Fetching Data</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="flutter-codelab-cr3-4"
+                  title="Flutter Codelab / Coding Roulette: Full Stack Flutter Apps Workshop (pt.4): Cloud Firestore - Fetching Data"
+                  environment="web"
+                  feedback-link="https://romanjustcodes.web.app">
+    
+      <google-codelab-step label="Overview" duration="0">
+        <h2 is-upgraded>What You&#39;ll Build in this Workshop:</h2>
+<ul>
+<li>Retrieve data from a Firebase Cloud Firestore (fetch account information)</li>
+<li>Create our main landing page widget (FlutterBankMain)</li>
+<li>Create a Provider service for handling data transactions (FlutterBankService)</li>
+<li>Implement the sign-out capability</li>
+</ul>
+<p>You will also learn about the following:</p>
+<ul>
+<li>Create Flutter User interfaces with ease</li>
+<li>Common Flutter Layout strategies using just core widgets</li>
+<li>Creating custom Flutter widgets and achieve widget composition</li>
+<li>Using Material Icon fonts</li>
+<li>State Management using Provider to decouple Business Logic of Components (BLoC)</li>
+</ul>
+<p>This is what we&#39;ll be accomplishing in  this codelab: users will be able to log in, and under their credentials, they will have bank accounts set up. They can view their account details, such as the type of account, balance, account number, etc. They can only get to this page only if they are logged in, hence the reason why we&#39;re putting behind the authentication workflow.</p>
+<p class="image-container"><img alt="Main Screen" src="img/567cb2d9a1ec6f28.png"></p>
+<p>The following is a schematics view of what we&#39;ll be tackling for this page widget:</p>
+<p class="image-container"><img alt="Main Screen" src="img/eeb12211f0ee3685.png"></p>
+<p>Let&#39;s proceed!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Initial Setup" duration="0">
+        <aside class="special"><p>To increase our development productivity, we&#39;ll set up the project so we land on the main page when we run it on DartPad and avoid having to log in and land on the main page every time we need to make a change and reload. Change the <strong>home</strong> property on the <strong>FlutterBankApp</strong> widget from being the splash page <strong>FlutterBankSplash</strong> to be the <strong>FlutterBankMain</strong> widget:</p>
+</aside>
+<p class="image-container"><img alt="Main Screen" src="img/28c4bf0bf4f723.png"></p>
+<p>Running this on DartPad will make us land always on this page (we&#39;ll only have it like while we develop this page):</p>
+<p class="image-container"><img alt="Main Screen" src="img/7d8e39287d6a0c8c.png"></p>
+<p>And with that in place, let&#39;s set up Firebase Cloud Firestore and the data we&#39;ll be consuming. Launch <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a> - see you there!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Set Up Firebase Cloud Firestore" duration="0">
+        <p><a href="https://firebase.google.com/products/firestore" target="_blank">Cloud Firestore</a> Firestore is a flexible, scalable NoSQL cloud database to store and sync data. It keeps your data in sync across client apps through realtime listeners and offers offline support so you can build responsive apps that work regardless of network latency or Internet connectivity. It is built on top of Google&#39;s storage infrastructure, with multi-regional support and strong consistency.</p>
+<p>Firestore stores data within &#34;documents&#34;, which are contained within &#34;collections&#34;. Documents can also contain nested collections, thus allowing you to build hierarchies to store related data and easily retrieve the data you need using expressive queries. All queries scale with the size of your result set (note: not your data set), so your app is ready to scale from day one.</p>
+<p>Let&#39;s fire up our Firebase Console, and right at the homepage, use the left navigation to locate the <strong>Firestore Database</strong> link. The <strong>Cloud Firestore</strong> page shows. Click on <strong>Create database</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/6904cafd3df4b83.png"></p>
+<p>A dialog appears to set the security rules for your database. Make sure you select the option <strong>Start in Test Mode</strong> which means after 30 days you won&#39;t be able to access the data in Firebase unless you update the rules. We&#39;ll show this later in the codelab. Click <strong>Next</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/9797b62670fa7534.png"></p>
+<p>Next step asks you you define the location where your Cloud Firestore database will be provisioned; keep the default (us-central). Click <strong>Enable</strong> to proceed:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e822cb7adcf44ab.png"></p>
+<p>Firebase then provisions your database for a few seconds:</p>
+<p class="image-container"><img alt="Main Screen" src="img/fa89c5e0fdb890fd.png"></p>
+<p>And then Cloud Firestore is ready to go! Now, let&#39;s add some data to it, shall we?</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Setting up initial data in Firebase Cloud Firestore" duration="0">
+        <p>We mentioned earlier the concept of <strong>documents</strong> and <strong>collections</strong> which are the core data structures in which Firestore organizes data.</p>
+<p>Before you proceed, we need to get some information from one of our test users: their unique authenticated user id, which we&#39;ll use to uniquely associate the bank account information to them.</p>
+<p>Go to the <strong>Authentication / Users</strong> tab, and copy the <strong>User UID</strong> next to their email (in our case, <strong>client@gmail.com</strong> - we&#39;ll continue using this account):</p>
+<p class="image-container"><img alt="Main Screen" src="img/fa89c5e0fdb890fd.png"></p>
+<p>With that capture. Let&#39;s get back to our Firestore Database.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Adding our first Firestore collection" duration="0">
+        <p>You always start with a <strong>collection</strong> in Firestore, which will hold one or more <strong>documents</strong>. Let&#39;s start by adding our first collection, called <strong>accounts</strong>. Click on <strong>Start Collection</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/f99a750b732642bc.png"></p>
+<p>In the dialog that appears, type the name of your collection (accounts); hit <strong>Next</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/3c5571b4bbbb74fe.png"></p>
+<p>At this point you are required to add your first document, as collections are nothing without documents. Collections are nothing more than containers of documents. As the unique identifier for our first document, let&#39;s use the UID we grabbed earlier. Hit <strong>Save</strong> for now:</p>
+<aside class="special"><p>You can use the <strong>Auto-ID</strong> feature available on the Document ID field; in our case we want to associate the document with the logged in user, which we&#39;ll use later to fetch the corresponding document for the logged in user based on this ID.</p>
+</aside>
+<aside class="special"><p>This collection <strong>accounts</strong> will hold a unique document per user, and each document will be referenced by something unique, like the UID of the authenticated user (the UID we copied earlier)</p>
+</aside>
+<p class="image-container"><img alt="Main Screen" src="img/7d43c1bb641ad44b.png"></p>
+<p>Hooray! We have our first collection (<strong>accounts</strong>) and our first document (referenced by a unique UID).</p>
+<p class="image-container"><img alt="Main Screen" src="img/bdcedf0d355922c9.png"></p>
+<p>So far this document doesn&#39;t contain anything. Let&#39;s make it more interesting and add a nested collection to this document. Make sure the document is selected (by clicking on the middle column <strong>accounts</strong> and selecting the document ID of the desired document). On the third column, click on <strong>Start Collection</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/2ea7cfba61d4f8.png"></p>
+<p>Name this nested collection <strong>user_accounts</strong>. Click <strong>Next</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/317f3576ec6cd027.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Adding our first document" duration="0">
+        <p>Just like before, while creating either a root or a nested collection, you are required to add a first document. Here we&#39;ll make use of the <strong>Auto-ID</strong> feature to generate a random ID for our first document.</p>
+<p class="image-container"><img alt="Main Screen" src="img/bd1219e4e0a09d0d.png"></p>
+<p>Once the auto-id is populated, it is time to add some fields to this document. <strong>Fields</strong> are nothing more than key-value pair entries in a document, and they can be one of many times (i.e. string, number, boolean, map, array (different from a collection), etc.). Feel free to explore on your own; we&#39;ll explore a few of those as we make progress.</p>
+<p>We want to create a unique document that will represent a bank account, so the minimum amount of information we will need is a balance (usually a number), a bank account (usually a string), and a type of account (usually a string as well).</p>
+<p>Add the following fields, using the plus (+) underneath each field to add additional ones:</p>
+<ul>
+<li>account_number: type <strong>string</strong>, value ‘8889090&#39;</li>
+<li>balance: type <strong>number</strong>, with value 150</li>
+<li>type: type <strong>string</strong>, with value ‘savings&#39;</li>
+</ul>
+<p>Your document should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/8265a055be95f9d7.png"></p>
+<p>Verify, then hit <strong>Save</strong>. Your newly created document should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/37fa660e1d662076.png"></p>
+<p>Now that we are experts, let&#39;s add a second document to the <strong>user_accounts</strong> collection. Under the <strong>user_accounts</strong> collection (middle column), click on <strong>Add Document</strong> - same dialog will appear. Add an auto-generated ID and add the following fields:</p>
+<ul>
+<li>account_number: type <strong>string</strong>, value ‘8889091&#39;</li>
+<li>balance: type <strong>number</strong>, with value 300</li>
+<li>type: type <strong>string</strong>, with value ‘checking&#39;</li>
+</ul>
+<p>Verify that your fields look the same as below and click <strong>Save</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/44c6154b5c7363c9.png"></p>
+<p>Our two documents are in place within the nested collection called <strong>user_accounts</strong>, inside a document referenced by a unique ID (the logged-in user UID) within a root collection called <strong>accounts</strong>. Your <strong>user_accounts</strong> nested collection should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/706d3366a96c707d.png"></p>
+<h2 is-upgraded>Recap on the Document / Collection relationship</h2>
+<ul>
+<li>As mentioned before, a document can have nested collections, but a document cannot have another document directly underneaht it; it must live within a collection. Collections are empty vessels that hold documents, and facilitate grouping of documents and querying for related documents.</li>
+<li>Hence the reason why we made a collection called <strong>accounts</strong>, with unique documents (one per logged in user), which in turn can have a nested collection called <strong>user_accounts</strong>, which holds documents (one per bank account type). Then each document can either have fields (key-value pairs of data) or more nested collections, and so on.</li>
+</ul>
+<p>With our database pre-populated with some data, let&#39;s do some querying from Flutter and the Firebase SDK!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Setting up Firebase Cloud Firestore in Flutter" duration="0">
+        <p>We&#39;re ready to start pulling data from Firestore, but first we need to set a few things up, such as creating the model that will encapsulate the data about the bank account. For this we&#39;ll create a model class called <strong>Account</strong>, which we&#39;ll use to map the data coming from Firebase into a strongly-typed Dart model.</p>
+<p>Create a class called <strong>Account</strong>, with the following fields and corresponding constructor parameters:</p>
+<ul>
+<li>id: type String (this will hold the document&#39;s unique ID)</li>
+<li>type: type String</li>
+<li>accountNumber: type String</li>
+<li>balance; type double</li>
+</ul>
+<p>Also create a <a href="https://dart.dev/guides/language/language-tour#factory-constructors" target="_blank">factory</a> method to map the incoming JSON structure from Firebase (as a <strong>Map&lt;String, dynamic&gt;</strong>), and takes both the <strong>Map</strong> as well as the unique document&#39;s ID.</p>
+<p>Your class should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/fa84405311466027.png"></p>
+<p>Now that we know how we will map and model our data within Flutter, is the turn to create a wrapper around the data retrieval functionality, which we&#39;ll conveniently encapsulate within a provided service using the Provider pattern, which we&#39;ll call <strong>FlutterBankService</strong>.</p>
+<p>In our DartPad environment, create a new class called <strong>FlutterBankService</strong>. Make it extend <strong>ChangeNotifier</strong> since later on we&#39;ll make it so listeners get notified of its changes:</p>
+<p class="image-container"><img alt="Main Screen" src="img/30f705121c09b18f.png"></p>
+<p>Create a method called <strong>getAccounts</strong>, which takes a <strong>BuildContext</strong> as a parameter and will conveniently return a list of <strong>Account</strong> objects (<strong>List&lt;Account&gt;</strong>) wrapped inside a <strong>Future</strong> (since this call also will be asynchronous and we need to wait on it):</p>
+<p class="image-container"><img alt="Main Screen" src="img/46e407ea8241c95c.png"></p>
+<p>Now you ask: why are we passing the <strong>BuildContext</strong> into this method? We&#39;ll use to to fetch another service within this service - in our case, we need to retrieve a document from Firebase using as a reference the logged-in user&#39;s unique ID (hence why we stored the document using the unique UID as the association). We&#39;ll fetch the <strong>LoginService</strong> service using the injected <strong>context</strong> and fetching it out of the <strong>Provider</strong>, then getting the user ID using the convenient method of the <strong>LoginService</strong> called <strong>getUserId()</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e65f25a612568815.png"></p>
+<p>Create a local variable that will hold the list of accounts we fetch from Firebase before returning them to the user:</p>
+<p class="image-container"><img alt="Main Screen" src="img/f737383bdf116ad4.png"></p>
+<p>Instead of doing <strong>await/async</strong> on fetching the data from Firebase, this time I&#39;ll use a <strong>Completer</strong> and use the callback-registration approach, since I want to introduce a small delay before returning the data to the user (wow, Firebase is so fast fetching that I want to introduce a delay on purpose!), since I want to show a spinning indicator briefly to improve the user experience.</p>
+<p>A <a href="https://api.flutter.dev/flutter/dart-async/Completer-class.html" target="_blank">Completer</a> allows you to create Futures from scratch and for situations when you have callback-based API calls (like using <strong>.then()</strong>) or when you want to delay the completing of the Future to a later moment:</p>
+<aside class="special"><p>Make sure to import the <strong>dart:async</strong> package before using the <strong>Completer</strong>.</p>
+</aside>
+<p>Then create an instance of <strong>Completer</strong> type of <strong>List&gt;Account&lt;</strong> called <strong>accountsCompleter</strong> since when we return the <strong>Future</strong> instance, we will complete it with an object of type <strong>List&gt;Account&lt;</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/73b62b5ccd51cff2.png"></p>
+<p>Now, let&#39;s fetch the data.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Querying data from Firebase Firestore" duration="0">
+        <p>We&#39;re ready to query all documents associated to our logged in user (via their unique UID) inside the <strong>accounts</strong> collection, and then once the matched document by UID is found, grab all documents from the nested collection <strong>user_accounts</strong>. We&#39;ll fetch the data using a one-time read approach; later on we&#39;ll try the real-time approach. In the one-time read, data is fetched only once, using the <strong>.get()</strong> call:</p>
+<p class="image-container"><img alt="Main Screen" src="img/ee89a7750b893584.png"></p>
+<p>Hook up a callback to the end of the <strong>get()</strong> method using the <strong>.then()</strong> for when the <strong>Future</strong> returned completes. Inside the callback, capture the result of the collection in a <strong>QuerySnapshot</strong> object that we are calling <strong>collection</strong>, like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/80b41cd349caeb18.png"></p>
+<aside class="special"><p>When querying for a collection of documents, you capture the result in a <strong>QuerySnapshot</strong> which returns a collection of document references (not the actual documents); when querying for a single document, you capture the result in a <strong>DocumentSnapshot</strong>, which is a reference to the document (not the actual document); you get the document data when you call <strong>.data()</strong> on the reference.</p>
+</aside>
+<p>Inside the callback, loop through the document references returned via the <strong>QuerySnapshot</strong> by pulling all document references (via the <strong>.docs</strong> property of the <strong>QuerySnapshot</strong>). Get the data out of each document reference (via the <strong>.data()</strong> call) and cast it to a **Map≶String, dynamic&gt;).</p>
+<p class="image-container"><img alt="Main Screen" src="img/54f43be207bdc02a.png"></p>
+<p>Now, we need to map this data to a strongly-type model (our <strong>Account</strong> model created earlier) via its factory method <strong>.fromJson</strong>. Feed both the data and document it this method which should return an instance of <strong>Acount</strong>. Push this instance to our <strong>accounts</strong> collection.</p>
+<p class="image-container"><img alt="Main Screen" src="img/4b313c64a6200c52.png"></p>
+<p>After mapping and collecting all values, introduce a small delay using <strong>Future</strong>&#39;s utility method <strong>delayed</strong> and add a 2-second delay, then complete the Future generated by the completer by calling <strong>accountsCompleter.complete</strong>, passing the already populated collection:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e4ab8f43c56e7ad8.png"></p>
+<p>Wrap this method up by returning a <strong>Future</strong> out of the <strong>Completer</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a55f075abc5927e9.png"></p>
+<p>What this will do is: we&#39;ll return a <strong>Future</strong> from the <strong>Completer</strong> immediately, to the user. The user will await on this <strong>Future</strong> while we fetch the data from Firebase; once the data is ready (mapped and collected), we notify them through that same <strong>Future</strong> via the <strong>Completer</strong>&#39;s <strong>.complete</strong> call, passing the same type of data this method is returning via the method signature (<strong>Future≶List≶Account&gt;&gt;</strong>).</p>
+<p>We&#39;re ready to take this for a spin! Let&#39;s go to our page <strong>FlutterBankMain</strong> and add the widgets that will consume this data.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Fleshing out the FlutterBankMain widget page" duration="0">
+        <p>Now that we&#39;ve mapped the Firestore data to a more consumable type by our app, let&#39;s build our <strong>FlutterBankMain</strong> page so we can display the data.</p>
+<p>Start by setting the <strong>Scaffold</strong>&#39;s background color to white; add an <strong>AppBar</strong> widget to the <strong>Scaffold</strong> with the following properties:</p>
+<ul>
+<li>elevation: 0</li>
+<li>iconTheme: set the <strong>IconThemeData</strong>&#39;s color to mainThemeColor</li>
+<li>backgroundColor: transparent</li>
+<li>title: set it to be an Icon (Icons.savings), 40px in size, color mainThemeColor</li>
+<li>centerTitle: true</li>
+</ul>
+<p>Your code should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/28182b6c97e6e8fb.png"></p>
+<p>Run it on DartPad to start seeing how&#39;s coming along:</p>
+<p class="image-container"><img alt="Main Screen" src="img/1aba1f1c0a9f41f5.png"></p>
+<p>We want to lay out our items in a column fashion, so let&#39;s start our structure by replacing the existing <strong>Center</strong> widget from the <strong>Scaffold</strong>&#39;s body, and adding a <strong>Container</strong> with some padding for breathing room, then as its children we&#39;ll add a <strong>Column</strong> widget:</p>
+<p class="image-container"><img alt="Main Screen" src="img/43f209c612e0444f.png"></p>
+<p>As the first child of this <strong>Column</strong>, for the title, add a <strong>Row</strong> with an <strong>Icon</strong> with size of 30px (Icons.account_balance_wallet), some spacing and a <strong>Text</strong> widget with the text &#34;My Accounts&#34;, font size 20 - both with the mainThemeColor:</p>
+<p class="image-container"><img alt="Main Screen" src="img/46da41f7ce7f6469.png"></p>
+<p>Ending up looking like this once you run it on DartPad:</p>
+<p class="image-container"><img alt="Main Screen" src="img/477433c54a6541c6.png"></p>
+<p>Add some spacing right underneath it using a <strong>SizedBox</strong>, 20px height, then add an <strong>Expanded</strong> widget - this will be the region in the <strong>Column</strong> where we&#39;ll render the list of bank accounts - we&#39;ll put it inside the <strong>Expanded</strong> widget as we want it to occupy most of the real estate of the column (we&#39;ll get back to this <strong>Expanded</strong> in a minute).</p>
+<p>Make sure your code looks like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/46ca678c4e38ab6f.png"></p>
+<p>Let&#39;s get back to our <strong>Expanded</strong> widget - where we&#39;ll display the accounts.</p>
+<p>First thing we&#39;ll do is consume the service <strong>FlutterBankService</strong> using a <strong>Consumer</strong> widget, since we want to be notified of any changes within this service so we can rebuild accordingly. Therefore, replace the existing child <strong>Container</strong> placeholder widget in the <strong>Expanded</strong> and replace it by a <strong>Consumer</strong> widget of <strong>FlutterBankService</strong>; add the corresponding <strong>builder</strong> method that injects the context, the service being listened to (FlutterBankService) and an optional child:</p>
+<p class="image-container"><img alt="Main Screen" src="img/98c6ffb09296db7.png"></p>
+<aside class="special"><p>Before we start consuming this service, do as we did for every other service: inject it at the root via the <strong>MultiProvider</strong> widget so any other inherited widget can grab it via its context, as such:</p>
+</aside>
+<p class="image-container"><img alt="Main Screen" src="img/9b5c38c589f62d6a.png"></p>
+<p>Back to our widget - inside of this <strong>Consumer</strong>, is where we&#39;ll consume the account data available in the <strong>FlutterBankService</strong> when we call the method <strong>getAccounts()</strong>. Since this method returns <strong>Future</strong>. we&#39;ll use a very convenient widget - a <strong>FutureBuilder</strong>, and return it out of our <strong>Consumer</strong>.</p>
+<p>The <a href="https://api.flutter.dev/flutter/widgets/FutureBuilder-class.html" target="_blank"><strong>FutureBuilder</strong></a> widgets build themselves based on the latest snapshot of interaction with a Future (i.e. whether we are waiting, done (succesfully or with an error), etc.).</p>
+<p>FutureBuilder widgets take a future (in our case, the one returned from <strong>FlutterBankService</strong>&#39;s <strong>getAccounts</strong>), and a builder (that gets triggered upon the Futute changing its state), which is a callback method that gets the current <strong>BuildContext</strong> and a snapshot - a wrapper object (type <a href="https://api.flutter.dev/flutter/widgets/AsyncSnapshot-class.html" target="_blank"><strong>AsyncSnapshot</strong></a> that contains the value returned by the Future object in question (in our case, a List of <strong>Account</strong> objects) as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a410ec83e17b7c17.png"></p>
+<p>Now, inside of this <strong>builder</strong> method, you can check for the connection state of the snapshot, whether the snapshot has any data, or whether it has errors, etc.</p>
+<p>The first case we want to check is whether the <strong>snapshot.connectionState</strong> property is not done (ConnectionState.done) or if the snapshot has no data (!snapshot.hasData), so we can display some sort of spinning wheel here while the data arrives and it finishes. For now I&#39;ll just return a widget type <strong>Text</strong> with the label <strong>Loading</strong>; I&#39;ll change it to something fancier later:</p>
+<p class="image-container"><img alt="Main Screen" src="img/d5d3f3c0dd326b0c.png"></p>
+<p>Otherwise, I&#39;ll proceed further assuming I&#39;ve received some data.</p>
+<p>Pull the data from the snapshot using the <strong>.data</strong> property - which ends up being the data we pushed through the <strong>Completer</strong>&#39;s <strong>Future</strong> object in the <strong>getAccounts</strong> call when we return a Future - a List of <strong>Acount</strong>. Hold this data in a property called <strong>accounts</strong>, cast it appropriately.</p>
+<p>Then check whether this <strong>accounts</strong> property (a List) is empty, and if so, display yet another widget that denotes that there&#39;s no data, even though the call came back successfully. For speed, I&#39;ll use a <strong>Center</strong> widget with an <strong>Icon</strong>, some spacing, and some <strong>Text</strong> lined up vertically and horizontally.</p>
+<p>Your code should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/83bdeb0f7166f6c4.png"></p>
+<aside class="special"><p>You can additionally check for the <strong>snapshot.hasError</strong> for more customizable error handling</p>
+</aside>
+<p>Now, assuming every check has been taken care of, let&#39;s proceed now to pull the data being sent to us after the <strong>getAccounts</strong> call; let&#39;s display it in a list fashion (using a <strong>ListView</strong>, and each account will show on a custom <strong>AccountCard</strong> widget). For now, let&#39;s make sure we can see stuff on the screen. From the <strong>ListView.builder</strong> method, pass the itemCount (the length of accounts), an itemBuilder (a callback that executes for each entry in the collection to display); inside this callback handler, display something on a <strong>Text</strong> widget, displaying the <strong>type</strong> property out of the account in the iteration; we&#39;ll swap this for something fancier later on:</p>
+<p class="image-container"><img alt="Main Screen" src="img/fdfa58c3c676d137.png"></p>
+<p>We have a problem now because this call depends on the unique authenticated UID. I&#39;d suggest copy it for now, later we&#39;ll hook it up to the login workflow - that way we expedite the development and don&#39;t have to log in every time we make a small change to this class.</p>
+<p>Go to the <strong>FlutterBankService</strong> service class, and inside the <strong>getAccounts()</strong> method, comment out the <strong>doc(userId)</strong> and replace the <strong>userId</strong> by the <strong>actual</strong> UID from Firebase (only for development purposes - we&#39;ll flip it back again later):</p>
+<p class="image-container"><img alt="Main Screen" src="img/9f2e70fa99939c61.png"></p>
+<p>Making our first official call from Flutter into Firebase Cloud Firestore and viewing it on DartPad (drumroll please!!!):</p>
+<p class="image-container"><img alt="Main Screen" src="img/f296fd49c195f588.png"></p>
+<p>Nice! You briefly saw the word &#34;Loading&#34;,then we could see the value of the <strong>type</strong> field being shown on our screen - straight from Firebase Cloud Firestore!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creating the AccountCard Widget" duration="0">
+        <p>Now we&#39;ll create a custom widget that will display the bank account information we receive from Firebase:</p>
+<p class="image-container"><img alt="Main Screen" src="img/99b25fb1752cbaba.png"></p>
+<p>We&#39;ll have an <strong>AccountCard</strong> widget display per account inside our <strong>ListView</strong> widget. Here&#39;s a schematic of how we&#39;ll build it:</p>
+<p class="image-container"><img alt="Main Screen" src="img/b9b63fd79eceaf2e.png"></p>
+<p>Let&#39;s start by creating a <strong>StatelessWidget</strong> called <strong>AccountCard</strong>; add a constructor that takes an <strong>Account</strong> object. Return an empty <strong>Container</strong> widget for the moment:</p>
+<p class="image-container"><img alt="Main Screen" src="img/52c3eb5c07d31906.png"></p>
+<p>On this container, set padding of 20px all around, margin bottom only of 20px, and a fixed height of 180px. We want to limit the height of each card for consistency:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a8b730bc9eec5429.png"></p>
+<p>Let&#39;s add some rounded edges, set its color to white, and some shadow, via the <strong>Container</strong>&#39;s decoration property:</p>
+<p class="image-container"><img alt="Main Screen" src="img/8821b30fef92dbc5.png"></p>
+<p>We&#39;ve applied all styles to the <strong>Container</strong>, now let&#39;s add the child content to it:</p>
+<p>Add a <strong>Column</strong> as the immediate <strong>Container</strong>&#39;s child. Its children will be left aligned, and spread apart evenly:</p>
+<p class="image-container"><img alt="Main Screen" src="img/64006c7658bf41dc.png"></p>
+<p>Within this column, we&#39;ll divide the content into two regions: a top and a bottom region, thus we&#39;ll be separating them into two separate columns as well.</p>
+<p>Let&#39;s add a top <strong>Column</strong> widget with two <strong>Text</strong> widgets:</p>
+<ul>
+<li>the first <strong>Text</strong> widget one will display the account type in uppercase, followed by the &#34; ACCT&#34; string; left aligned, with font size of 12px and using the mainThemeColor as its color</li>
+<li>the second <strong>Text</strong> widget will just display the acount number preceded by asterists (just for displaying purposes)</li>
+</ul>
+<p>The top column should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/7cb15c45eb8ba940.png"></p>
+<p>The bottom <strong>Column</strong> widget will have its children left aligned. Add a first child widget: a <strong>Text</strong> widget with the text &#34;Balance&#34;, with 12px font size and mainThemeColor:</p>
+<p class="image-container"><img alt="Main Screen" src="img/c4f4cbc38eef14bb.png"></p>
+<p>Add another child widget: a <strong>Row</strong> widget with an <strong>Icon</strong> (Icons.monetization_on), with color from the mainThemeColor and 30px in size; next to it, a <strong>Text</strong> widget displaying the account balance value, using <strong>String</strong>&#39;s <strong>toStringAsFixed</strong> utility method, which formats the value as a String with 2 decimal points. Set it to 35px in font size, and append a dollar sign in front, and color it black:</p>
+<p class="image-container"><img alt="Main Screen" src="img/fcfe567e0812f25a.png"></p>
+<p>Last, import the <strong>intl</strong> package at the top of the file; this package provides internationalization and localization facilities, including message translation, plurals and genders, date/number formatting and parsing, and bidirectional text. We&#39;ll use it to format a date:</p>
+<pre><code language="language-flutter" class="language-flutter">import &#39;package:intl/intl.dart&#39;;
+</code></pre>
+<p>Below the <strong>Row</strong> widget we added earlier, add a <strong>Text</strong> widget, and use it to display today&#39;s date formatted like m/DD/YYY H:MM a (i.e 1/32/2022 4:50 PM), by calling <strong>DateFormat.yMd().add_jm().format()</strong> and passing <strong>DateTime.now()</strong> into the <strong>format()</strong> function. Apply a font size of 10px and grey in color, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a42a9e5c2c8714de.png"></p>
+<p>Let&#39;s now apply this newly created widget <strong>AccountCard</strong> and put it in place: In our <strong>FLutterBankMain</strong> widget, inside the <strong>ListView.builder</strong> method <strong>itemBuilder</strong> by removing the placeholder <strong>Text</strong> widget we have there, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/3bb71822f3d03508.png"></p>
+<p>Run it through DartPad and how we should see the <strong>AcountCard</strong> widgets being populated and showing in the list:</p>
+<p class="image-container"><img alt="Main Screen" src="img/fa0cd88802ec75a3.png"></p>
+<p>We&#39;re done with showing the accounts. You may have noticed that you see a &#34;Loading&#34; label showing right before the accounts show - that&#39;s the <strong>Text</strong> widget we created on the condition whether the <strong>snapshot.connectionState</strong> is not done or there&#39;s no data.</p>
+<p>We&#39;re going to create another custom widget for all our loading needs. We&#39;ll call it <strong>FlutterBankLoading</strong> so let&#39;s go aheaad and create a <strong>StatelessWidget</strong> class for it. Make it return a <strong>Center</strong> widget from its overridden <strong>build</strong> method:</p>
+<p class="image-container"><img alt="Main Screen" src="img/cac30b2249945c37.png"></p>
+<p>As the child of the <strong>Center</strong> widget, add a <strong>SizedBox</strong>, 80x80 in dimension, and inside of it, a <strong>Stack</strong> widget (since we&#39;ll overlay items on top of each other):</p>
+<p class="image-container"><img alt="Main Screen" src="img/f97b74a60b9a5257.png"></p>
+<p>First, we&#39;ll add a <strong>CircularProgressIndicator</strong> widget, which will give us the spinning progress loading effect, with a stroke width of 8px, and using the mainThemeColor, wrapped inside a fixed <strong>SizedBox</strong> (also 80x80), and in turn wrapped inside a <strong>Center</strong> widget so it is centered inside the <strong>Stack</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/eaa3a94a1628bd48.png"></p>
+<p>Last, add an <strong>Icon</strong> widget inside the <strong>Stack</strong>, so it shows on top of the circular progress indicator (Icons.savings), with size 40px and color mainThemeColor:</p>
+<p class="image-container"><img alt="Main Screen" src="img/cc355a1347b3ea6c.png"></p>
+<p>Now, let&#39;s go back to our <strong>FlutterBankMain</strong> widget, and replace the &#34;Loading&#34; <strong>Text</strong> widget by our newly created <strong>FlutterBankLoading</strong> widget, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/3b99f106189a737d.png"></p>
+<p>Running through DartPad, now you notice a loading animation prior to showing the acount cards, like so:</p>
+<p class="image-container"><img alt="Main Screen" src="img/249bcf428d5a7d4d.gif"></p>
+<p>Let&#39;s wrap up this page by creating the last section of the <strong>FlutterBankMain</strong> widget: the bottom bar widget.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Adding the bottom bar widget" duration="0">
+        <p>Let&#39;s work on the last widget of this page, which represents the bottom section that allows us to navigate to the other upcoming features of this app: the bottom bar widget:</p>
+<p class="image-container"><img alt="Main Screen" src="img/f747c22afe12014.png"></p>
+<p>The following is a schematic view of how we&#39;ll be building this widget:</p>
+<p class="image-container"><img alt="Main Screen" src="img/198d56a8bf25f561.png"></p>
+<p>We&#39;ll start by creating the models that will hydrate this widget. We&#39;ll start by creating a class called <strong>FlutterBankBottomBarItem</strong>, which will represent each of the items that will be shown in the <strong>FlutterBankBottomBar</strong> widget.</p>
+<p>Add the following fields:</p>
+<ul>
+<li>label: to show the label on the bottom bar item</li>
+<li>icon: the icon that represents the bottom bar item</li>
+<li>action: the action to perform upon tapping on the bottom bar item</li>
+</ul>
+<p>Your class should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a3a2f8a8e4f2ce66.png"></p>
+<p>In the <strong>Utils</strong> class, we&#39;ll create a utilily helper method that will generate all the items to populate our bottom bar. We&#39;ll call it <strong>getBottomBarItems</strong>, which will return a <strong>List</strong> of <strong>FlutterBankBottomBarItem</strong> objects, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e000fa36457b9018.png"></p>
+<p>With that done, let&#39;s now proceed and build the <strong>FlutterBankBottomBar</strong> widget.</p>
+<p>Create a <strong>StatelessWidget</strong> class called <strong>FlutterBankBottomBar</strong> widget, with a <strong>Container</strong> as the root of the structure:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e16d57b6730abe47.png"></p>
+<p>To this <strong>Container</strong> widget, let&#39;s add a 100px height, padding of 20px all around, and via the <strong>decoration</strong> property, a color of white, and a slight shadow:</p>
+<p class="image-container"><img alt="Main Screen" src="img/4a8380abdb84ea2a.png"></p>
+<p>We&#39;ll now add as the child of this <strong>Container</strong> a <strong>Row</strong> widget, The <strong>Row</strong> widget will have its children laid out using its <strong>spaceAround</strong> strategy for its <strong>mainAxisAlignment</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/458d743cc7e15577.png"></p>
+<p>Inside of the <strong>build</strong> method, on top of the returning <strong>Container</strong>, we&#39;ll use our utility method <strong>Utils.getBottomBarItems()</strong> to feed the list of <strong>FlutterBankBottomItem</strong> items into our row. Save the returning list on a variable called <strong>bottomBarItems</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/1a020db1e121cfb4.png"></p>
+<p>Let&#39;s populate the <strong>children</strong> property of the <strong>Row</strong> widget now with the <strong>bottomBarItems</strong>, using the <strong>List.generate</strong> method to programmatically generate each bottom bar item from this collection. The <strong>List.generate</strong> method takes two parameters: the length of the collection containing the items to iterate on, and a callback that executes per item in the collection, which takes a parameter (index) that represent the index in the current iteration:</p>
+<p class="image-container"><img alt="Main Screen" src="img/198b8682cf972f79.png"></p>
+<p>Now let&#39;s concentrate our efforts on this <strong>List.generate</strong> method that will crank out each bottom bar item.</p>
+<p>Inside the callback method, pull the corresponding <strong>FlutterBankBottomItem</strong> from the current iteration using the <strong>index</strong> supplied, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/8f054e40baa1071c.png"></p>
+<p>With this model, I&#39;ll create a <strong>Container</strong> widget, with 10px of padding all around, and a minimum with of 80px (using the <strong>constraints</strong> property set to <strong>BoxConstraints(minWidth: 80)</strong>) with a child <strong>Column</strong> with its items vertically aligned at the bottom and horizontally centered:</p>
+<p class="image-container"><img alt="Main Screen" src="img/8536f93ed28168be.png"></p>
+<p>As the children of the <strong>Column</strong> widget, we&#39;ll add an <strong>Icon</strong> widget and a <strong>Text</strong> widget (now we&#39;ll make use of our <strong>bottomItem</strong> variable created above). Feed the <strong>bottomItem.icon</strong> to the <strong>Icon</strong> widget, set the color to mainThemeColor and an icon size of 20px; feed the <strong>bottomItem.label</strong> to the <strong>Text</strong> widget, also with the mainThemeColor and a font size of 10px:</p>
+<p class="image-container"><img alt="Main Screen" src="img/33f89a763fe34ee9.png"></p>
+<p>To add tapping functionality and some of the Material effects, let&#39;s wrap our <strong>Container</strong> inside an <a href="https://api.flutter.dev/flutter/material/InkWell-class.html" target="_blank"><strong>InkWell</strong></a> widget. Set the following properties of the <strong>InkWell</strong> as follows:</p>
+<ul>
+<li>highlightColor: use mainThemeColor with a 20% opacity</li>
+<li>splashColor: use mainThemeColor with a 10% opacity</li>
+<li>onTap: use this callback to trigger the bottomItem.action() callback. It hasn&#39;t been set yet, but hook it up now, we&#39;ll take care of this callback later when we create the other pages.</li>
+</ul>
+<p>Your code should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/6aa1271b6c376efc.png"></p>
+<aside class="special"><p>Note: The InkWell widget must have a Material widget as an ancestor. The Material widget is where the ink reactions are actually painted. This matches the material design premise wherein the Material is what is actually reacting to touches by spreading ink.</p>
+</aside>
+<p>Let&#39;s add a <a href="https://api.flutter.dev/flutter/material/Material-class.html" target="_blank"><strong>Material</strong></a> widget wrapping the <strong>InkWell</strong> to support the notion above, with the following specs:</p>
+<ul>
+<li>color: transparent</li>
+<li>borderRadius: 10px radius</li>
+<li>clipBehavior: Clip.antiAlias</li>
+</ul>
+<p class="image-container"><img alt="Main Screen" src="img/18c22dfbb81db8b4.png"></p>
+<p>I believe we should be good with this bottom navigation bar. Anyway we have to get back to this widget to allow for the redirection to the other feature pages when we create them (deposit, withdrawal and expenses).</p>
+<p>Now let&#39;s integrate this widget into our <strong>FlutterBankMain</strong> widget page.</p>
+<p>Back on the <strong>FlutterBankMain</strong>, inside the <strong>Scaffold</strong>, set the <strong>bottomNavigationBar</strong> property to be our newly created widget <strong>FlutterBankBottomBar</strong>, as shown below:</p>
+<p class="image-container"><img alt="Main Screen" src="img/587522c69e490a11.png"></p>
+<p>Running it through DartPad, you should get the following output on the preview panel:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a0acd67e4301d4d4.png"></p>
+<p>In later codelabs, we&#39;ll hook up the action to each of the bottom bar item buttons so they can navigate to their corresponding pages.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Creating the Drawer / Side Menu Panel" duration="0">
+        <p>Let&#39;s implement a side menu panel that slides from the left side of the screen, triggered by a hamburger menu where we can put options like settings, signing out options, etc:</p>
+<p class="image-container"><img alt="Main Screen" src="img/33ece5584fa52b6b.png"></p>
+<p>The following is a schematics view of what we&#39;ll tackle for the drawer / side menu:</p>
+<p class="image-container"><img alt="Main Screen" src="img/fb8c37c067d1cf7c.png"></p>
+<h2 is-upgraded>Create the FlutterBankDrawer class</h2>
+<p>Let&#39;s start as always by creating the custom widget class that extends from <strong>StatelessWidget</strong>, which we&#39;ll call <strong>FlutterBankDrawer</strong>, and return an empty <strong>Container</strong> from it:</p>
+<p class="image-container"><img alt="Main Screen" src="img/4255bb85a64608fa.png"></p>
+<p>Add a background color to this <strong>Container</strong>, as well as padding of 30px all around. As the immediate child of this <strong>Container</strong>, add a <strong>Column</strong> widget with its items aligned at the top:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e350d7869c50bcfc.png"></p>
+<p>Add the first widget to this <strong>Column</strong> - our app icon, using an <strong>Icon</strong> widget (Icons.savings), color white, 60px in size, as well as some spacing below it using a <strong>SizedBox</strong>, 40px in height:</p>
+<p class="image-container"><img alt="Main Screen" src="img/55148fce64479e11.png"></p>
+<p>Let&#39;s proceed and add a <strong>TextButton</strong> widget with a background color of white with 10% opacity (using the <strong>MaterialStateProperty.all</strong> way of assigning background colors to Material widgets); add a child <strong>Text</strong> widget with the text &#34;Sign Out&#34;, left aligned and white in color as well. As it is required, assign an empty callback / handler to its <strong>onPressed</strong> event. We&#39;ll apply the functionality to this event shortly.</p>
+<p>Last, wrap the whole <strong>TextButton</strong> inside a <strong>Material</strong> widget, since just like the <strong>InkWell</strong> widget, in order for them to activate their &#34;material-ness&#34;, they need to have a <strong>Material</strong> widget as a parent. Add transparent color to the wrapping <strong>Material</strong> widget.</p>
+<p>Your code should look like this after implementing this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/d44d984c882e5c79.png"></p>
+<p>Now, in order to see it work, we now need to place this widget where it belongs - inside our <strong>FlutterBankMain</strong>&#39;s <strong>Scaffold</strong> widget as its <strong>Drawer</strong> widget. Go back to the <strong>FlutterBankMain</strong>&#39;s <strong>Scaffold</strong>, assign its <strong>drawer</strong> property by instantiating a <strong>Drawer</strong> widget, and as a child, add our newly created <strong>FlutterBankDrawer</strong> widget, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/96a8815f03c2b904.png"></p>
+<p>Run it through DartPad to see how it&#39;s coming out, and you should see this behavior after tapping the hamburger menu that shows on the top left corner:</p>
+<p class="image-container"><img alt="Main Screen" src="img/b6bc902d3a4b2bdb.gif"></p>
+<p>Let&#39;s wrap up this feature by adding the signing out functionality.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Signing out of Firebase" duration="0">
+        <p>Now that we have the ability to sign into Firebase leveraging Firebase Authentication, fetching data from Firebase Cloud Firestore, let&#39;s bring it to a close by adding the signing out capabilities.</p>
+<p>At the end, it should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/5aaa200973d0fe03.gif"></p>
+<p>Let&#39;s proceed!</p>
+<h2 is-upgraded>Adding the sign-out logic in the LoginService</h2>
+<p>Let&#39;s go to the <strong>LoginService</strong> to add the functionality.</p>
+<p>Create a method called <strong>signOut()</strong> that returns a <strong>Future&lt;bool&gt;</strong> since this will also be an ansynchronous call. We&#39;ll also use a <strong>Completer</strong> here (also type <strong>bool</strong>) as we&#39;ll return a flag from this method whether the signing out was successful or not. Immediately return the Future out of the <strong>Completer</strong> for sake of speed:</p>
+<p class="image-container"><img alt="Main Screen" src="img/1297dd2c012589c9.png"></p>
+<p>Then, inside of this method, invoke the <strong>signOut</strong> method out of the <strong>FirebaseAuth.instance</strong>, we&#39;l be hooking up two callback handlers, one for the successful result, and one to handle any error conditions. Inside the (<strong>.then()</strong>) pass the first callback used to capture the value result (if needed), and immediate complete the <strong>signOutCompleter</strong> Completer with <strong>true</strong>:</p>
+<p class="image-container"><img alt="Main Screen" src="img/94b5a3379dda2366.png"></p>
+<p>Lastly, add the error condition as a second callback attached to the <strong>.then()</strong> method call, as a callback to the <strong>onError</strong> parameter. When completing the error condition, instead of using the regular <strong>.completer</strong> out of the <strong>Completer</strong> instance, call the <strong>completeError</strong>, passing a dictionary with the error condition to be consumed on the other end.</p>
+<p>Make sure that at the end, both conditions look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/7698af6735ee2b40.png"></p>
+<p>Next, let&#39;s create another utility method that will generate our <strong>AlertDialog</strong> widget to display once the user taps on the &#34;Sign Out&#34; button, but also handles the logout if the user selects &#34;Yes&#34;.</p>
+<p>In the <strong>Utils</strong> class, create a static void method called <strong>signOutDialog</strong> which takes a <strong>BuildContext</strong> as a parameter:</p>
+<p class="image-container"><img alt="Main Screen" src="img/2879e4964af9d73.png"></p>
+<p>Inside, we&#39;ll use a very convenient method provided by the framework called <a href="https://api.flutter.dev/flutter/material/showDialog.html" target="_blank"><strong>showDialog</strong></a>, which gives you the core components of a Material dialog (entrance and exit animations, modal barrier behavior), and takes (at a minimum) two arguments: a <strong>builder</strong> method for you to build your <strong>Dialog</strong> widget to whatever you want it to be, and a <strong>context</strong> (which we will be passing from the context provided) for looking up the <strong>Navigator</strong> and <strong>Theme</strong>. Feel free to explore the <strong>showDialog</strong> in detail as it offers other useful properties and customizations.</p>
+<p>Call the <strong>showDialog</strong> method, passing the <strong>context</strong> we just injected into the <strong>Utils.signOutDialog</strong> method, and a <strong>builder</strong> callback, which takes the supplied context, as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/891c4e1e8e860cb1.png"></p>
+<p>For our dialog, we&#39;ll also use another useful widget provided by the framework, called <strong>AlertDialog</strong> (although we could&#39;ve easily create our own), but this one already gives you the core elements of any dialog widget. Out of the <strong>builder</strong> method, return an <strong>AlertDialog</strong> widget, setting the following properties on it as detailed below:</p>
+<ul>
+<li>title: displays a title; set it to a <strong>Text</strong> widget that says &#34;Flutter Savings Bank Logout&#34;, color it with the mainThemeColor</li>
+<li>content: the body of the dialog; make it a <strong>Container</strong> widget with 20px padding all around, with a child <strong>Text</strong> widget that says &#34;Are you sure you want to log out of your account?&#34;</li>
+<li>actions: takes an array of widgets, usually reserved for action buttons. Add a single <strong>TextButton</strong> widget, with a child <strong>Text</strong> widget, labeled &#34;Yes&#34;, color it with the mainThemeColor; add an empty calback handler for the <strong>TextButton</strong> widget to its <strong>onPressed</strong> event property.</li>
+</ul>
+<p>Your <strong>AlertDialog</strong> should look like this so far:</p>
+<p class="image-container"><img alt="Main Screen" src="img/87d6d7b9b8e66907.png"></p>
+<p>Now, let&#39;s handle the pressing of the &#34;Yes&#34; <strong>TextButton</strong>, which should trigger the sign-out workflow. Inside its <strong>onPressed</strong>, the first thing we&#39;ll do is pop itself out of the <strong>Navigator</strong> navigation stack. The <strong>showDialog</strong> actually pushes a modal to the top of the stack, that&#39;s what allows it to display an overlay and the dialog and makes it show on top of the whole interface, so let&#39;s pop it out first:</p>
+<p class="image-container"><img alt="Main Screen" src="img/8757fcd9093b4fa.png"></p>
+<p>Now, all we gotta do is call the <strong>signOut</strong> method from the <strong>LoginService</strong> at this point.</p>
+<p>Retrieve an instance of the <strong>LoginService</strong> using the <strong>Provider.of</strong>, using the context passed into the <strong>builder</strong> method as such:</p>
+<p class="image-container"><img alt="Main Screen" src="img/e39f4f912ffa2211.png"></p>
+<p>And now, call the <strong>signOut</strong> method out of the <strong>loginService</strong> instance. Since this returns a <strong>Future</strong>, you can either hook up a callback handler to the Future returned by calling <strong>signOut</strong>&#39;s and do a <strong>.then()</strong>, or you can decorate the <strong>onPressed</strong> callback with <strong>async</strong>, and then <strong>await</strong> on the <strong>loginService.signOut()</strong>. Either way works; I&#39;ll stick with the <strong>async/await</strong> this time. I like to show always multiple approaches on how to tackle things.</p>
+<p>Then, after calling <strong>loginService.signOut</strong>, just pop the navigator stack once again, which results in popping the <strong>FlutterBankMain</strong> screen, taking the user back to the login screen, as it is expected.</p>
+<p>Your code should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/a646bf9430a7861f.png"></p>
+<p>Now it&#39;s all a matter of going back to our <strong>FlutterBankDrawer</strong> widget, locate the &#34;Sign Out&#34; button and on its <strong>onPressed</strong> event handler, make sure to pop the <strong>Drawer</strong> from the navigation stack (yeah, the <strong>Drawer</strong> also gets pushed onto the stack, so popping the stack is the same as dismissing it pretty much), therefore, call the <strong>Navigator.of(context).pop()</strong> to dismiss the drawer, then display the dialog with a call to the <strong>Utils.signOutDialog</strong> and passing the current context to it.</p>
+<p>The <strong>onPressed</strong> event on the <strong>FlutterBankDrawer</strong>&#39;s sign out method should look like this:</p>
+<p class="image-container"><img alt="Main Screen" src="img/8cacb3c43daf352b.png"></p>
+<p>And with that, we&#39;ve fully completed our <strong>FlutterBankMain</strong> page widget. Test the whole workflow now by undoing what we did earlier on the <strong>FlutterBankApp</strong>&#39;s <strong>MaterialApp</strong> widget, by resetting its <strong>home</strong> property to be the splash screen, the <strong>FlutterBankSplash</strong> page widget.</p>
+<p>Thanks for making it all the way here! Hope you&#39;ve learned a lot by now. Keep on going completing the rest of the codelabs!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Wrap-up" duration="0">
+        <p>In this codelab, we accomplished the following:</p>
+<ul>
+<li>Wrapped up the main landing page (<strong>FlutterBankMain</strong> page)</li>
+<li>Created custom widgets (<strong>FlutterBankBottomBar</strong>, <strong>FlutterBankDrawer</strong>, <strong>FlutterBankLoading</strong>, <strong>AccountCard</strong>)</li>
+<li>Implemented sign-out functionality</li>
+<li>Learned about collections and documents in Firebase</li>
+<li>Created service to wrap Firebase functionality</li>
+<li>Implemented one-time fetching of data from Firebase using <strong>.get()</strong></li>
+<li>Mapping Firebase data into PODO (Plain Ol&#39; Dart Objects)</li>
+<li>Created utility methods in the <strong>Utils</strong> class for reusing and sharing code througout</li>
+<li>Used dialogs and the navigation stack to pop and push screens</li>
+</ul>
+<h3 is-upgraded>Please don&#39;t forget to follow me on social media:</h3>
+<ul>
+<li>On Twitter (<a href="https://www.twitter.com/drcoderz" target="_blank">@drcoderz</a>)</li>
+<li>On YouTube (<a href="https://www.youtube.com/channel/UCKsp3r1ERjCpKJtD2n5WtPg" target="_blank">Roman Just Codes</a>)</li>
+<li>On My <a href="https://romanjustcodes.web.app/#/home" target="_blank">Personal Portfolio</a></li>
+<li>On <a href="https://medium.com/@romanejaquez" target="_blank">Medium</a></li>
+<li>On <a href="https://www.linkedin.com/in/roman-jaquez-8941a424/" target="_blank">LinkedIn</a></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Complete Code" duration="0">
+        <pre><code language="language-flutter" class="language-flutter">import &#39;dart:async&#39;;
+import &#39;package:flutter/material.dart&#39;;
+import &#39;package:google_fonts/google_fonts.dart&#39;;
+import &#39;package:firebase_core/firebase_core.dart&#39;;
+import &#39;package:cloud_firestore/cloud_firestore.dart&#39;;
+import &#39;package:firebase_auth/firebase_auth.dart&#39;;
+import &#39;package:provider/provider.dart&#39;;
+import &#39;package:intl/intl.dart&#39;;
+
+void main() async {
+
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: &#34;AIzaSyBwSM_bH2-kid-TtJPxZUo0Xw_QO8kgsU8&#34;,
+      authDomain: &#34;flutter-bank-app-6ec93.firebaseapp.com&#34;,
+      projectId: &#34;flutter-bank-app-6ec93&#34;,
+      storageBucket: &#34;flutter-bank-app-6ec93.appspot.com&#34;,
+      messagingSenderId: &#34;182673651632&#34;,
+      appId: &#34;1:182673651632:web:aad3511575ff2677108875&#34;
+    )
+  );
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) =&gt; LoginService(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =&gt; FlutterBankService(),
+        )
+      ],
+      child: FlutterBankApp()
+    )
+  );
+}
+
+class FlutterBankApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: ThemeData(
+        textTheme: GoogleFonts.poppinsTextTheme(
+          Theme.of(context).textTheme
+        )
+      ),
+      debugShowCheckedModeBanner: false,
+      home: FlutterBankSplash() 
+    );
+  }
+}
+
+class FlutterBankSplash extends StatelessWidget {
+  
+  @override
+  Widget build(BuildContext context) {
+
+    Future.delayed(const Duration(seconds: 2), () {
+       Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) =&gt; FlutterBankLogin())
+       );   
+     });
+
+    return Scaffold(
+      backgroundColor: Utils.mainThemeColor,
+      body: Stack(
+        children: const [
+          Center(
+            child: Icon(Icons.savings, color: Colors.white, size: 60)
+          ),
+          Center(
+            child: SizedBox(
+              width: 100,
+              height: 100,
+              child: CircularProgressIndicator(
+                strokeWidth: 8,
+                valueColor: AlwaysStoppedAnimation&lt;Color&gt;(Colors.white)
+              )
+            )
+          )
+        ],
+      )
+    );
+  }
+}
+
+class FlutterBankLogin extends StatefulWidget {
+  @override
+  FlutterBankLoginState createState() =&gt; FlutterBankLoginState();
+}
+
+class FlutterBankLoginState extends State&lt;FlutterBankLogin&gt;{
+
+  TextEditingController usernameController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+
+    LoginService loginService  = Provider.of&lt;LoginService&gt;(context, listen: false);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Container(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  width: 7,
+                  color: Utils.mainThemeColor
+                ),
+                borderRadius: BorderRadius.circular(100)
+              ),
+              child: const Icon(Icons.savings, color: Utils.mainThemeColor, size: 45)
+            ),
+            const SizedBox(height: 30),
+            const Text(&#39;Welcome to&#39;, style: TextStyle(color: Colors.grey, fontSize: 15)),
+            const Text(&#39;Flutter\nSavings Bank&#39;, 
+            style: TextStyle(color: Utils.mainThemeColor, fontSize: 30)),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center, 
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(&#39;Sign Into Your Bank Account&#39;, 
+                         textAlign: TextAlign.center, 
+                         style: TextStyle(color: Colors.grey, fontSize: 12)
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(50)
+                      ),
+                      child: TextField(
+                        onChanged: (text) {
+                          setState(() {});
+                        },
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          prefixIcon: Icon(Icons.email, color: Utils.mainThemeColor),
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.only(
+                            left: 20, bottom: 11, top: 11, right: 15
+                          ),
+                          hintText: &#34;Email&#34;
+                        ),
+                        style: const TextStyle(fontSize: 16),
+                        controller: usernameController
+                      ) 
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // password Container wrapper 
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(50)
+                      ),
+                      child: TextField(
+                        onChanged: (text) {
+                          setState(() {});
+                        },
+                        obscureText: true,
+                        obscuringCharacter: &#34;*&#34;,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.lock, color: Utils.mainThemeColor),
+                          border: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          disabledBorder: InputBorder.none,
+                          contentPadding: EdgeInsets.only(
+                            left: 15, bottom: 11, top: 11, right: 15
+                          ),
+                          hintText: &#34;Password&#34;
+                        ),
+                        controller: passwordController,
+                        style: const TextStyle(fontSize: 16),
+                      )
+                    ),
+                    
+                    Consumer&lt;LoginService&gt;(
+                      builder: (context, lService, child) {
+
+                        String errorMsg = lService.getErrorMessage();
+                      
+                        if (errorMsg.isEmpty) {
+                          return const SizedBox(height: 40);
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning, color: Colors.red),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  errorMsg, 
+                                  style: const TextStyle(color: Colors.red)
+                                )
+                              )
+                            ]
+                          )
+                        );
+                      }
+                    )
+
+
+                  ]
+                )
+              )
+            ),
+            FlutterBankMainButton(
+              label: &#39;Sign In&#39;,
+              enabled: validateEmailAndPassword(),
+              onTap: () async {
+                var username = usernameController.value.text;
+                var pwd = passwordController.value.text;
+
+                bool isLoggedIn = await loginService.signInWithEmailAndPassword(username, pwd);
+
+                if (isLoggedIn) {
+                  usernameController.clear();
+                  passwordController.clear();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) =&gt; FlutterBankMain())
+                  );
+                }
+              }
+            ),
+            const SizedBox(height: 10),
+            
+            FlutterBankMainButton(
+              label: &#39;Register&#39;,
+              icon: Icons.account_circle,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) =&gt; FlutterAccountRegistration())
+                );
+              },
+              backgroundColor: Utils.mainThemeColor.withOpacity(0.05),
+              iconColor: Utils.mainThemeColor,
+              labelColor: Utils.mainThemeColor
+            ) 
+
+          ]
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  bool validateEmailAndPassword() {
+    return usernameController.value.text.isNotEmpty &amp;&amp; 
+      passwordController.value.text.isNotEmpty 
+        &amp;&amp; Utils.validateEmail(usernameController.value.text);
+  }
+}
+
+class FlutterAccountRegistration extends StatefulWidget {
+  @override
+  FlutterAccountRegistrationState createState() =&gt; FlutterAccountRegistrationState();
+}
+
+class FlutterAccountRegistrationState extends State&lt;FlutterAccountRegistration&gt; {
+
+  TextEditingController usernameController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
+  TextEditingController confirmPasswordController = TextEditingController();
+  
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+
+    LoginService loginService = Provider.of&lt;LoginService&gt;(context, listen: false);
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Utils.mainThemeColor),
+        backgroundColor: Colors.transparent,
+        title: const Icon(Icons.savings, color: Utils.mainThemeColor, size: 40),
+        centerTitle: true
+      ),
+      body: Container(
+        padding: const EdgeInsets.all(30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // title
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 40),
+                    child: Text(&#39;Create New Account&#39;, 
+                      style: TextStyle(color: Utils.mainThemeColor, fontSize: 20)
+                    )
+                  ),         
+                  // email field
+                  Utils.generateInputField(&#39;Email&#39;, Icons.email, 
+                    usernameController, 
+                    false, (text) {
+                      setState(() {});
+                  }),
+                  // password field
+                  Utils.generateInputField(&#39;Password&#39;, Icons.lock, 
+                    passwordController, 
+                    true, (text) {
+                      setState(() {});
+                  }),
+                  // password confirmation field
+                  Utils.generateInputField(&#39;Confirm Password&#39;, Icons.lock, 
+                    confirmPasswordController, 
+                    true, (text) {
+                      setState(() {});
+                  }),
+                ]
+              )
+            ),
+            FlutterBankMainButton(
+              label: &#39;Register&#39;,
+              enabled: validateFormFields(),
+              onTap: () async {
+                String username = usernameController.value.text;
+                String pwd = passwordController.value.text;
+
+                bool accountCreated = 
+                    await loginService.createUserWithEmailAndPassword(username, pwd);
+
+                if (accountCreated) {
+                  Navigator.of(context).pop();
+                }
+              }
+            )
+          ]
+        )
+      )
+    );
+  }
+
+  bool validateFormFields() {
+    return Utils.validateEmail(usernameController.value.text) &amp;&amp;
+     usernameController.value.text.isNotEmpty &amp;&amp;
+      passwordController.value.text.isNotEmpty &amp;&amp;
+      confirmPasswordController.value.text.isNotEmpty &amp;&amp;
+      (passwordController.value.text == confirmPasswordController.value.text);
+  }
+}
+
+class FlutterBankMainButton extends StatelessWidget {
+  
+  final Function? onTap;
+  final String? label;
+  final bool? enabled;
+  final IconData? icon;
+  final Color? backgroundColor;
+  final Color? iconColor;
+  final Color? labelColor;
+  
+  const FlutterBankMainButton({
+    Key? key, this.label, this.onTap, 
+    this.icon, 
+    this.backgroundColor = Utils.mainThemeColor, 
+    this.iconColor = Colors.white,
+    this.labelColor = Colors.white,
+    this.enabled = true })
+  : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: Material(
+            color: enabled! ? backgroundColor : backgroundColor!.withOpacity(0.5),
+              child: InkWell(
+              onTap: enabled! ? () {
+                onTap!();
+              } : null,
+              highlightColor: Colors.white.withOpacity(0.2),
+              splashColor: Colors.white.withOpacity(0.1),
+              child: Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(50)
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Visibility(
+                        visible: icon != null,
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 20),
+                          child: Icon(icon, color: iconColor, size: 20),
+                        )
+                      ),
+                      Text(label!, textAlign: TextAlign.center, 
+                        style: TextStyle(
+                          color: labelColor, 
+                          fontWeight: FontWeight.bold
+                        )
+                    )
+                  ]
+                )
+              ),
+            ),
+          ),
+        )
+      ],
+    );
+  }
+}
+
+class FlutterBankMain extends StatelessWidget {
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      drawer: Drawer(child: FlutterBankDrawer()),
+      appBar: AppBar(
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Utils.mainThemeColor),
+        backgroundColor: Colors.transparent,
+        title: const Icon(Icons.savings, color: Utils.mainThemeColor, size: 40),
+        centerTitle: true
+      ),
+      body: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.account_balance_wallet, 
+                  color: Utils.mainThemeColor, size: 30),
+                SizedBox(width: 10),
+                Text(&#39;My Accounts&#39;, 
+                  style: TextStyle(color: Utils.mainThemeColor, fontSize: 20)
+                )
+              ]
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Consumer&lt;FlutterBankService&gt;(
+                builder: (context, bankService, child) {
+                  return FutureBuilder(
+                    future: bankService.getAccounts(context),
+                    builder: (BuildContext context, AsyncSnapshot snapshot) {
+
+                      if (snapshot.connectionState != ConnectionState.done || !snapshot.hasData) {
+                        return FlutterBankLoading();
+                      }
+
+                      List&lt;Account&gt; accounts = snapshot.data as List&lt;Account&gt;;
+                      
+                      if (accounts.isEmpty) {
+                        return Center(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.account_balance_wallet, color: Utils.mainThemeColor, size: 50),
+                              SizedBox(height: 20),
+                              Text(&#39;You don\&#39;t have any accounts\nassociated with your profile.&#39;, 
+                              textAlign: TextAlign.center, style: TextStyle(color: Utils.mainThemeColor))
+                            ]
+                          )
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: accounts.length,
+                        itemBuilder: (context, index) {
+                          var acct = accounts[index];
+                          return AccountCard(account: acct);
+                        }
+                      );
+                    }
+                  );
+                }
+              )
+            )
+          ]
+        )
+      ),
+      bottomNavigationBar: FlutterBankBottomBar(),
+    );
+  }
+}
+
+class AccountCard extends StatelessWidget {
+  
+  final Account? account;
+  const AccountCard({ Key? key, this.account }) : super(key: key);
+  
+  @override
+  Widget build(BuildContext context) {
+
+    return Container(
+      height: 180,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(25),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0.0, 5.0)
+          )
+        ]
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Text(&#39;${account!.type!.toUpperCase()} ACCT&#39;, textAlign: TextAlign.left, 
+                style: const TextStyle(color: Utils.mainThemeColor, fontSize: 12)),
+              Text(&#39;**** ${account!.accountNumber}&#39;)
+            ]
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(&#39;Balance&#39;, textAlign: TextAlign.left, 
+                style: TextStyle(color: Utils.mainThemeColor, fontSize: 12)
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.monetization_on, color: Utils.mainThemeColor, size: 30),
+                  Text(&#39;\$${account!.balance!.toStringAsFixed(2)}&#39;, 
+                    style: const TextStyle(color: Colors.black, fontSize: 35)
+                  )
+                ]
+              ),
+              Text(&#39;As of ${DateFormat.yMd().add_jm().format(DateTime.now())}&#39;, 
+                style: const TextStyle(fontSize: 10, color: Colors.grey)
+              )
+            ]
+          )
+        ]
+      )
+    );
+  }
+}
+
+class FlutterBankBottomBar extends StatelessWidget {
+  
+  @override
+  Widget build(BuildContext context) {
+
+    var bottomItems = Utils.getBottomBarItems();
+
+    return Container(
+      height: 100,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Utils.mainThemeColor.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset.zero
+          )
+        ]
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(
+          bottomItems.length, (index) {
+            FlutterBankBottomBarItem bottomItem = bottomItems[index];
+
+            return Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                highlightColor: Utils.mainThemeColor.withOpacity(0.2),
+                splashColor: Utils.mainThemeColor.withOpacity(0.1),
+                onTap: () {
+                  bottomItem.action!();
+                },
+                child: Container(
+                  constraints: BoxConstraints(minWidth: 80),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(bottomItem.icon, color: Utils.mainThemeColor, size: 20),
+                      Text(bottomItem.label!, 
+                        style: TextStyle(color: Utils.mainThemeColor, fontSize: 10)
+                      )
+                    ]
+                  )
+                )
+              )
+            );
+          }
+        )
+      )
+    );
+  }
+}
+
+class FlutterBankLoading extends StatelessWidget {
+  
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: 80,
+        height: 80,
+        child: Stack(
+          children: const [
+            Center(
+              child: SizedBox(
+                width: 80,
+                height: 80,
+                child: CircularProgressIndicator(
+                  strokeWidth: 8,
+                  valueColor: AlwaysStoppedAnimation&lt;Color&gt;(Utils.mainThemeColor)
+                )
+              )
+            ),
+            Center(
+              child: Icon(Icons.savings, color: Utils.mainThemeColor, size: 40)
+            )
+          ]
+        )
+      )
+    );
+  }
+}
+
+class FlutterBankDrawer extends StatelessWidget {
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Utils.mainThemeColor,
+      padding: const EdgeInsets.all(30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.savings, color: Colors.white, size: 60),
+          const SizedBox(height: 40),
+          Material(
+            color: Colors.transparent,
+
+            // rest of the code omitted for brevity...
+            child: TextButton(
+              style: ButtonStyle(
+                 backgroundColor: MaterialStateProperty.all&lt;Color&gt;(Colors.white.withOpacity(0.1))
+              ),
+              child: const Text(&#39;Sign Out&#39;, textAlign: TextAlign.left, 
+                style: TextStyle(color: Colors.white)
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                Utils.signOutDialog(context);
+              },
+            )
+
+
+          )
+        ]
+      )
+    );
+  }
+}
+
+
+// UTILITIES
+class Utils {
+  static const Color mainThemeColor = Color(0xFF8700C3);
+
+  static bool validateEmail(String? value) {
+    String pattern =
+        r&#34;^[a-zA-Z0-9.!#$%&amp;&#39;*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]&#34;
+        r&#34;{0,253}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]&#34;
+        r&#34;{0,253}[a-zA-Z0-9])?)*$&#34;;
+    RegExp regex = RegExp(pattern);
+    
+    return (value != null || value!.isNotEmpty || regex.hasMatch(value));
+  }
+
+  static Widget generateInputField(
+    String hintText, 
+    IconData iconData, 
+    TextEditingController controller, 
+    bool isPasswordField, 
+    Function onChanged) {
+
+    return Container(
+      padding: const EdgeInsets.all(5),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(50)
+      ),
+      child: TextField(
+        onChanged: (text) {
+          onChanged(text);
+        },
+        obscureText: isPasswordField,
+        obscuringCharacter: &#34;*&#34;,
+        decoration: InputDecoration(
+          prefixIcon: Icon(iconData, color: Utils.mainThemeColor),
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          contentPadding: EdgeInsets.only(left: 15, bottom: 11, top: 11, right: 15),
+          hintText: hintText
+        ),
+        controller: controller,
+        style: const TextStyle(fontSize: 16),
+      )
+    );
+  }
+
+  static void signOutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text(&#39;Flutter Savings Bank Logout&#39;, 
+          style: TextStyle(color: Utils.mainThemeColor)),
+          content: Container(
+            padding: const EdgeInsets.all(20),
+            child: const Text(&#39;Are you sure you want to log out of your account?&#39;)
+          ),
+          actions: [
+            TextButton(
+              child: const Text(&#39;Yes&#39;, style: TextStyle(color: Utils.mainThemeColor)),
+              onPressed: () async {
+                
+                Navigator.of(ctx).pop();
+                LoginService loginService = Provider.of&lt;LoginService&gt;(ctx, listen: false);
+                await loginService.signOut();
+                Navigator.of(ctx).pop();
+
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static List&lt;FlutterBankBottomBarItem&gt; getBottomBarItems() {
+    return [
+      FlutterBankBottomBarItem(
+        label: &#39;Withdraw&#39;,
+        icon: Icons.logout,
+        action: () {}
+      ),
+      FlutterBankBottomBarItem(
+        label: &#39;Deposit&#39;,
+        icon: Icons.login,
+        action: () {}
+      ),
+      FlutterBankBottomBarItem(
+        label: &#39;Expenses&#39;,
+        icon: Icons.payments,
+        action: () {}
+      )
+    ];
+  }
+}
+
+// SERVICES 
+class LoginService extends ChangeNotifier {
+
+  String _userId = &#39;&#39;;
+  String _errorMessage = &#39;&#39;;
+  
+  String getErrorMessage() {
+    return _errorMessage;
+  }
+
+  void setLoginErrorMessage(String msg) {
+    _errorMessage = msg;
+    notifyListeners();
+  }
+
+  String getUserId() {
+    return _userId;
+  }
+
+  Future&lt;bool&gt; signOut() {
+    Completer&lt;bool&gt; signOutCompleter = Completer();
+
+    FirebaseAuth.instance.signOut().then(
+      (value) {
+        signOutCompleter.complete(true);
+      },
+      onError: (error) {
+        signOutCompleter.completeError({ &#39;error&#39;: error });
+      }
+    );
+
+    return signOutCompleter.future;
+  }
+
+  Future&lt;bool&gt; createUserWithEmailAndPassword(String email, String pwd) async {
+
+    try {
+      UserCredential userCredentials = 
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: pwd);
+      
+      return true; // or userCredentials != null;
+      
+    } on FirebaseAuthException {
+      return false;
+    }
+  }
+
+  Future&lt;bool&gt; signInWithEmailAndPassword(String email, String password) async {
+    setLoginErrorMessage(&#39;&#39;);
+
+    try {
+      UserCredential credentials = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      _userId = credentials.user!.uid;
+      
+      return true;
+      
+    } on FirebaseAuthException catch (ex) {
+      setLoginErrorMessage(&#39;Error during sign-in: &#39; + ex.message!);
+      return false;
+    }
+  }
+}
+
+class FlutterBankService extends ChangeNotifier {
+
+  Future&lt;List&lt;Account&gt;&gt; getAccounts(BuildContext context) {
+
+    LoginService loginService = Provider.of&lt;LoginService&gt;(context, listen: false);
+    String userId = loginService.getUserId();
+
+    List&lt;Account&gt; accounts = [];
+
+    Completer&lt;List&lt;Account&gt;&gt; accountsCompleter = Completer();
+
+    FirebaseFirestore.instance
+      .collection(&#39;accounts&#39;)
+      .doc(&#39;h0e8z3spfrdYrQ467vIF3bf9qbo1&#39;) // use the one from YOUR project! 
+      //.doc(userId)
+      .collection(&#39;user_accounts&#39;)
+      .get().then((QuerySnapshot collection) {
+
+        for(var doc in collection.docs) {
+            var acctDoc = doc.data() as Map&lt;String, dynamic&gt;;
+            var acct = Account.fromJson(acctDoc, doc.id);
+            accounts.add(acct);
+        }
+
+        Future.delayed(const Duration(seconds: 1), () {
+          accountsCompleter.complete(accounts);
+        });
+      });
+
+    return accountsCompleter.future;
+  }
+
+}
+
+// MODELS
+class Account {
+  
+  String? id;
+  String? type;
+  String? accountNumber;
+  double? balance;
+  
+  Account({ this.id, this.type, this.accountNumber, this.balance });
+  
+  factory Account.fromJson(Map&lt;String, dynamic&gt; json, String docId) {
+    return Account(
+      id: docId,
+      type: json[&#39;type&#39;],
+      accountNumber: json[&#39;account_number&#39;],
+      balance: json[&#39;balance&#39;]
+    );
+  }
+}
+
+class FlutterBankBottomBarItem {
+
+  String? label;
+  IconData? icon;
+  Function? action;
+
+  FlutterBankBottomBarItem({ this.label, this.icon, this.action });
+}
+
+</code></pre>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>
